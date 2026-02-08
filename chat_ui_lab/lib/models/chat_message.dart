@@ -12,3 +12,4 @@ class ChatMessage {
   // Helper: Is this a user message?
   bool get isUserMessage => role == "user";
 }
+
