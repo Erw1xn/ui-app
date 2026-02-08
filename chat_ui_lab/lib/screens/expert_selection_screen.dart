@@ -20,8 +20,7 @@ class Expert {
   });
 }
 
-// This list holds the initial set of experts. It's not a constant
-// because we will add to it at runtime.
+// This list holds the initial set of experts.
 List<Expert> initialExperts = [
   Expert(
     name: 'Plant Expert',
@@ -92,31 +91,32 @@ class _ExpertSelectionScreenState extends State<ExpertSelectionScreen> {
   // The list of experts is now a state variable, initialized with the starting experts.
   final List<Expert> _experts = List.from(initialExperts);
 
-  // This function handles the logic for adding a new expert to the list.
-  void _addNewExpert() {
-    // In a real app, you would typically open a dialog or a new screen
-    // to let the user define the new expert's properties.
-    final newExpert = Expert(
-      name: 'New Persona',
-      description: 'A customizable new expert',
-      icon: Icons.add_reaction,
-      emoji: '✨',
-      systemPrompt: 'You are a helpful assistant. Behave as the user asks.',
+  // This function now opens a dialog to get user input for the new expert.
+  void _addNewExpert() async {
+    // We 'await' for the dialog to close and see if it returned a new expert.
+    final newExpert = await showDialog<Expert>(
+      context: context,
+      builder: (BuildContext context) {
+        return const _AddExpertDialog();
+      },
     );
 
-    // Calling setState() triggers a rebuild of the widget, which updates
-    // the UI to show the newly added expert in the GridView.
-    setState(() {
-      _experts.add(newExpert);
-    });
+    // If the user created an expert (i.e., didn't cancel), newExpert will not be null.
+    if (newExpert != null) {
+      // Calling setState() triggers a rebuild of the widget, which updates
+      // the UI to show the newly added expert in the GridView.
+      setState(() {
+        _experts.add(newExpert);
+      });
 
-    // A SnackBar provides visual feedback to the user that the action was successful.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('"${newExpert.name}" has been added!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+      // A SnackBar provides visual feedback that the action was successful.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${newExpert.name}" has been added!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   @override
@@ -125,24 +125,22 @@ class _ExpertSelectionScreenState extends State<ExpertSelectionScreen> {
       appBar: AppBar(
         title: const Text('Choose an Expert'),
         backgroundColor: Colors.blueGrey[900],
-        // The 'actions' property holds widgets to display on the right side of the AppBar.
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Create New Persona',
-            onPressed: _addNewExpert, // The button calls our function when pressed.
+            onPressed: _addNewExpert, // The button now calls the updated function.
           ),
         ],
       ),
       body: GridView.builder(
         padding: const EdgeInsets.all(16.0),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, // Two cards per row
+          crossAxisCount: 2,
           crossAxisSpacing: 16.0,
           mainAxisSpacing: 16.0,
-          childAspectRatio: 0.9, // Adjust for card height
+          childAspectRatio: 0.9,
         ),
-        // The item count is based on the current length of our state variable.
         itemCount: _experts.length,
         itemBuilder: (context, index) {
           final expert = _experts[index];
@@ -189,3 +187,117 @@ class _ExpertSelectionScreenState extends State<ExpertSelectionScreen> {
     );
   }
 }
+
+// A new StatefulWidget to manage the state of the input form within the dialog.
+class _AddExpertDialog extends StatefulWidget {
+  const _AddExpertDialog();
+
+  @override
+  State<_AddExpertDialog> createState() => _AddExpertDialogState();
+}
+
+class _AddExpertDialogState extends State<_AddExpertDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _systemPromptController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _systemPromptController.dispose();
+    super.dispose();
+  }
+
+  void _createExpert() {
+    // Validate the form. If it's valid, create the expert and close the dialog.
+    if (_formKey.currentState!.validate()) {
+      final newExpert = Expert(
+        name: _nameController.text,
+        description: _descriptionController.text,
+        systemPrompt: _systemPromptController.text,
+        // Using default values for icon and emoji for simplicity.
+        // You could add fields for these in the dialog as well.
+        icon: Icons.add_reaction,
+        emoji: '✨',
+      );
+      // Pass the newly created expert back to the calling screen.
+      Navigator.of(context).pop(newExpert);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Create New Persona'),
+      // Use a SingleChildScrollView to prevent overflow if the keyboard appears.
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Persona Name',
+                  hintText: 'e.g., History Buff',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'e.g., An expert in world history',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a description';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _systemPromptController,
+                decoration: const InputDecoration(
+                  labelText: 'System Prompt',
+                  hintText: 'e.g., You are a helpful history expert...',
+                ),
+                maxLines: 5, // Allow more space for the system prompt
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a system prompt';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          child: const Text('Cancel'),
+          onPressed: () {
+            // Close the dialog without returning any data.
+            Navigator.of(context).pop();
+          },
+        ),
+        ElevatedButton(
+          onPressed: _createExpert,
+          child: const Text('Create'),
+        ),
+      ],
+    );
+  }
+}
+
